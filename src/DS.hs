@@ -8,7 +8,7 @@ import Data.Set (Set, (\\))
 import qualified Data.Set as Set
 import DefaultMap (DefaultMap, (!))
 import qualified DefaultMap as DM
-import Data.Function ((&))
+import Data.Foldable (toList)
 
 newtype DS a = DS (DefaultMap (Set a) Double)
   deriving (Eq, Ord, Show)
@@ -18,8 +18,10 @@ newtype DS a = DS (DefaultMap (Set a) Double)
 --   getOmega :: Set a
 -- } deriving (Eq)
 
--- The mass is the value of the complement of the set in the map
-mass (DS defMap) omega set = defMap ! (omega\\set)
+-- The mass is the value of the complement of the "a" set
+mass (DS defMap) omega a = defMap ! (omega' \\ a')
+  where omega' = Set.fromList (toList omega)
+        a' = Set.fromList (toList a)
 
 -- Dempster's combination rule works over the sum of all sets
 -- whose intersection is the set we're looking the mass of.
