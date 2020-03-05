@@ -10,56 +10,41 @@ module DS where
 
 import Data.Set (Set, (\\))
 import qualified Data.Set as Set
-import DefaultMap (DefaultMap, (!))
-import qualified DefaultMap as DM
+import MassMap (MassMap, (!))
+import qualified MassMap as MM
 import Data.Foldable (toList)
 
 -- DS has the domain and a mass assignment map
 -- In the case of mempty, everything will be empty
 -- and should be replaced with the others when
 -- combining
-data DS a = DS [a] (DefaultMap (Set a) Double)
+data DS k = DS [k] (MassMap k)
   deriving (Eq, Ord, Show)
 
 -- The mass is simply the value of a in the set
-mass :: (Foldable b, Foldable c, Ord a) => DS a -> b a -> c a -> Double
-mass (DS _ defMap) _ a = defMap ! (Set.fromList . toList) a
+mass :: (Ord k) => DS k -> Set k -> Set k -> Double
+mass (DS _ map) _ a = map ! a
 
--- The DS combination rule works over the sum of all sets
--- whose intersection is the set we're looking the mass of.
--- Therefore, we sum every mass of an intersection
-dempsterCombination :: Ord a => DS a -> DS a -> DS a
-dempsterCombination ds1@(DS om1 _) ds2@(DS om2 _)
-  | null om1 = ds2
-  | null om2 = ds1
-  | otherwise = dempsterCombination' ds1 ds2
-
-dempsterCombination' :: Ord a => DS a -> DS a -> DS a
-dempsterCombination' (DS om1 m1) (DS om2 m2) =
-  let possibilities = Set.cartesianProduct (DM.keysSet m1) (DM.keysSet m2)
-      subnormal = foldr sumByIntersection (DM.empty 0) possibilities
-      kConstant = calculateK subnormal
-  in DS omega $ DM.delete Set.empty $ fmap (kConstant*) subnormal
+dempsterCombination :: Ord k => DS k -> DS k -> DS k
+dempsterCombination (DS om1 m1) (DS om2 m2) =
+  let possibilities = Set.cartesianProduct (MM.keysSet m1) (MM.keysSet m2)
+      subnormal = foldr sumByIntersection (MM.empty omega) possibilities
+  in DS omega $ MM.normalize subnormal
     where
       omega = if null om1 then om2 else om1
       sumByIntersection (x, y) m = let set = Set.intersection x y
                                        value = m1!x * m2!y
-                                   in DM.insertWith (+) set value m
+                                   in MM.insertWith (+) set value m
 
-fromMasses :: Ord a => Set a -> [([a], Double)] -> DS a
-fromMasses omega l = DS (toList omega) $ DM.fromList 0 $ map go l
+fromMasses :: Ord k => Set k -> [([k], Double)] -> DS k
+fromMasses omega l = DS (toList omega) $ MM.fromList (toList omega) $ map go l
   where go (as, d) = (Set.fromList as, d)
 
--- The sum is a measure of the compatibility of the
--- evidences.
-calculateK :: Ord a => DefaultMap (Set a) Double -> Double
-calculateK m = 1 / (1 - (m!Set.empty))
-
-instance Ord a => Semigroup (DS a) where
+instance Ord k => Semigroup (DS k) where
   (<>) = dempsterCombination
 
-instance Ord a => Monoid (DS a) where
-  mempty = DS [] $ DM.singleton 0 Set.empty 1
+instance Ord k => Monoid (DS k) where
+  mempty = undefined
 
 someFunc :: IO ()
 someFunc = putStrLn "someFunc"
