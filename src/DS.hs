@@ -10,7 +10,7 @@ module DS where
 
 import Data.Set (Set, (\\))
 import qualified Data.Set as Set
-import MassMap (MassMap, (!))
+import MassMap (MassMap)
 import qualified MassMap as MM
 import Data.Foldable (toList)
 
@@ -19,8 +19,8 @@ newtype DS k = DS (MassMap k)
   deriving (Eq, Ord, Show)
 
 -- The mass is simply the value of a in the set
-mass :: (Foldable b, Foldable c, Ord k) => DS k -> b k -> c k -> Double
-mass (DS map) _ a = map ! (Set.fromList (toList a))
+mass :: (Foldable c, Ord k) => DS k -> Set k -> c k -> Double
+mass (DS m) omega a = MM.lookup omega (Set.fromList (toList a)) m
 
 fromMasses :: Ord k => Set k -> [([k], Double)] -> DS k
 fromMasses omega l = DS $ MM.fromList (toList omega) $ map go l

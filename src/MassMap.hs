@@ -2,7 +2,7 @@ module MassMap where
 
 import Data.List
 import Data.Maybe (fromJust)
-import Data.IntMap (IntMap)
+import Data.IntMap (IntMap, (!), (!?))
 import qualified Data.IntMap as IM
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -41,7 +41,7 @@ dempsterCombination (MM om1 m1) (MM om2 m2) =
       omega = if null om1 then om2 else om1
       sumByIntersection (x, y) m =
         let set = x .&. y
-            value = fromJust (IM.lookup x m1) * fromJust (IM.lookup y m2)
+            value = m1!x * m2!y
         in IM.insertWith (+) set value m
 
 -- these 2 functions shouldn't be exported
@@ -67,9 +67,14 @@ singleton :: Ord k => [k] -> Set k -> Double -> MassMap k
 singleton omega k v = MM omega $ IM.singleton k' v
   where k' = set2int omega k
 
-(!) :: Ord k => MassMap k -> Set k -> Double
-(MM omega m) ! k = IM.findWithDefault 0 k' m
-  where k' = set2int omega k
+-- lookup returns the mass of a set
+-- the first argument is the universe (needed in the vacuous case)
+-- TODO switch to Maybe
+lookup :: Ord k => Set k -> Set k -> MassMap k -> Double
+lookup omega a (MM [] _) = if a == omega then 1 else 0
+lookup _ a (MM omega m) = m!a'
+  where a' = set2int omega a
+
 
 insert :: Ord k => Set k -> Double -> MassMap k -> MassMap k
 insert k v (MM omega m) = MM omega (IM.insert k' v m)
