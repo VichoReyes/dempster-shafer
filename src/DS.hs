@@ -44,7 +44,7 @@ instance Ord k => Semigroup (DS k) where
   (<>) = dempsterCombination
 
 instance Ord k => Monoid (DS k) where
-  mempty = undefined
+  mempty = DS [] MM.vacuous
 
 someFunc :: IO ()
 someFunc = putStrLn "someFunc"

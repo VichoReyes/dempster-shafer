@@ -1,44 +1,75 @@
 module MassMap where
 
-import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.List
+import Data.Maybe (fromJust)
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IM
 import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.Bits as Bits
+import Data.Bits ((.&.), (.|.))
 
 -- A MassMap is a Map where the keys are
 -- always subsets of a domain omega
 -- and the default value is 0
 -- TODO make Eq, Ord ignore omega?
 -- TODO auto-normalize?
-data MassMap k = MM [k] (Map (Set k) Double)
+data MassMap k = MM [k] (IntMap Double)
   deriving (Eq, Ord, Show)
 
 normalize :: Ord k => MassMap k -> MassMap k
 normalize (MM omega m) = 
-  let withoutEmpty = Map.delete Set.empty m
-      inverseK = Map.foldr (+) 0 withoutEmpty
+  let withoutEmpty = IM.delete emptySet m
+      inverseK = IM.foldr (+) 0 withoutEmpty
   in MM omega (fmap (/inverseK) withoutEmpty)
 
+emptySet :: Int
+emptySet = Bits.zeroBits
+
+fullSet :: Int
+fullSet = Bits.complement emptySet
+
+vacuous :: MassMap k
+vacuous = MM [] $ IM.singleton fullSet 1
+
+-- these 2 functions shouldn't be exported
+-- TODO return Maybe values
+set2int :: Ord k => [k] -> Set k -> Int
+set2int omega s = foldr acc Bits.zeroBits s
+  where acc el int = int .|. Bits.bit (fromJust (elemIndex el omega))
+
+int2set :: Ord k => [k] -> Int -> Set k
+int2set omega is = foldMap f [0..Bits.finiteBitSize is]
+  where f i = if Bits.testBit is i
+                then Set.singleton $ omega!!i
+                else Set.empty
+
 empty :: [k] -> MassMap k
-empty omega = MM omega Map.empty
+empty omega = MM omega IM.empty
 
 delete :: Ord k => Set k -> MassMap k -> MassMap k
-delete k (MM omega m) = MM omega $ Map.delete k m
+delete k (MM omega m) = MM omega $ IM.delete k' m
+  where k' = set2int omega k
 
-singleton :: [k] -> Set k -> Double -> MassMap k
-singleton omega k v = MM omega $ Map.singleton k v
+singleton :: Ord k => [k] -> Set k -> Double -> MassMap k
+singleton omega k v = MM omega $ IM.singleton k' v
+  where k' = set2int omega k
 
 (!) :: Ord k => MassMap k -> Set k -> Double
-(MM omega m) ! k = Map.findWithDefault 0 k m
+(MM omega m) ! k = IM.findWithDefault 0 k' m
+  where k' = set2int omega k
 
 insert :: Ord k => Set k -> Double -> MassMap k -> MassMap k
-insert k v (MM omega m) = MM omega (Map.insert k v m)
+insert k v (MM omega m) = MM omega (IM.insert k' v m)
+  where k' = set2int omega k
 
 fromList :: Ord k => [k] -> [(Set k, Double)] -> MassMap k
-fromList omega = MM omega . Map.fromList
+fromList omega l = MM omega $ IM.fromList l'
+  where l' = map (\(s, d) -> (set2int omega s, d)) l
 
 insertWith :: Ord k => (Double -> Double -> Double) -> Set k -> Double -> MassMap k -> MassMap k
-insertWith f k v (MM omega m) = MM omega (Map.insertWith f k v m)
+insertWith f k v (MM omega m) = MM omega (IM.insertWith f k' v m)
+  where k' = set2int omega k
 
-keysSet :: MassMap k -> Set (Set k)
-keysSet (MM _ m) = Map.keysSet m
+keysSet :: Ord k => MassMap k -> Set (Set k)
+keysSet (MM omega m) = Set.fromList . map (int2set omega) $ IM.keys m
