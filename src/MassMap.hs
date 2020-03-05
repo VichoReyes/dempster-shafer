@@ -33,15 +33,16 @@ vacuous :: MassMap k
 vacuous = MM [] $ IM.singleton fullSet 1
 
 dempsterCombination :: Ord k => MassMap k -> MassMap k -> MassMap k
-dempsterCombination mm1@(MM om1 m1) mm2@(MM om2 m2) =
-  let possibilities = Set.cartesianProduct (keysSet mm1) (keysSet mm2)
-      subnormal = foldr sumByIntersection (empty omega) possibilities
-  in normalize subnormal
+dempsterCombination (MM om1 m1) (MM om2 m2) =
+  let possibilities = Set.cartesianProduct (intSet m1) (intSet m2)
+      subnormal = foldr sumByIntersection IM.empty possibilities
+  in normalize $ MM omega subnormal
     where
       omega = if null om1 then om2 else om1
-      sumByIntersection (x, y) m = let set = Set.intersection x y
-                                       value = mm1!x * mm2!y
-                                   in insertWith (+) set value m
+      sumByIntersection (x, y) m =
+        let set = x .&. y
+            value = fromJust (IM.lookup x m1) * fromJust (IM.lookup y m2)
+        in IM.insertWith (+) set value m
 
 -- these 2 functions shouldn't be exported
 -- TODO return Maybe values
@@ -82,5 +83,5 @@ insertWith :: Ord k => (Double -> Double -> Double) -> Set k -> Double -> MassMa
 insertWith f k v (MM omega m) = MM omega (IM.insertWith f k' v m)
   where k' = set2int omega k
 
-keysSet :: Ord k => MassMap k -> Set (Set k)
-keysSet (MM omega m) = Set.fromList . map (int2set omega) $ IM.keys m
+intSet :: IntMap a -> Set Int
+intSet m = Set.fromList $ IM.keys m
