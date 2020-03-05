@@ -32,6 +32,17 @@ fullSet = Bits.complement emptySet
 vacuous :: MassMap k
 vacuous = MM [] $ IM.singleton fullSet 1
 
+dempsterCombination :: Ord k => MassMap k -> MassMap k -> MassMap k
+dempsterCombination mm1@(MM om1 m1) mm2@(MM om2 m2) =
+  let possibilities = Set.cartesianProduct (keysSet mm1) (keysSet mm2)
+      subnormal = foldr sumByIntersection (empty omega) possibilities
+  in normalize subnormal
+    where
+      omega = if null om1 then om2 else om1
+      sumByIntersection (x, y) m = let set = Set.intersection x y
+                                       value = mm1!x * mm2!y
+                                   in insertWith (+) set value m
+
 -- these 2 functions shouldn't be exported
 -- TODO return Maybe values
 set2int :: Ord k => [k] -> Set k -> Int
