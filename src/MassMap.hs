@@ -1,4 +1,11 @@
-module MassMap where
+module MassMap
+  ( MassMap
+  , vacuous
+  , dempsterCombination
+  , domainLookup
+  , blindLookup
+  , fromList
+  ) where
 
 import Data.List
 import Data.Maybe (fromJust)
