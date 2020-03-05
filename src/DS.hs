@@ -20,7 +20,7 @@ newtype DS k = DS (MassMap k)
 
 -- The mass is simply the value of a in the set
 mass :: (Foldable c, Ord k) => DS k -> Set k -> c k -> Double
-mass (DS m) omega a = MM.lookup omega (Set.fromList (toList a)) m
+mass (DS m) omega a = MM.domainLookup omega (Set.fromList (toList a)) m
 
 fromMasses :: Ord k => Set k -> [([k], Double)] -> DS k
 fromMasses omega l = DS $ MM.fromList (toList omega) $ map go l

@@ -67,14 +67,20 @@ singleton :: Ord k => [k] -> Set k -> Double -> MassMap k
 singleton omega k v = MM omega $ IM.singleton k' v
   where k' = set2int omega k
 
--- lookup returns the mass of a set
+-- domainLookup returns the mass of a set
 -- the first argument is the universe (needed in the vacuous case)
--- TODO switch to Maybe
-lookup :: Ord k => Set k -> Set k -> MassMap k -> Double
-lookup omega a (MM [] _) = if a == omega then 1 else 0
-lookup _ a (MM omega m) = m!a'
-  where a' = set2int omega a
+domainLookup :: Ord k => Set k -> Set k -> MassMap k -> Double
+domainLookup om1 a mm@(MM om2 m)
+  | null om2 && om1 == a = 1
+  | null om2 && om1 /= a = 0
+  | om1 /= Set.fromList om2 = error "different universe sets given"
+  | otherwise = blindLookup a mm
 
+-- blindLookup is like domainLookup but it doesn't need the domain.
+-- For this reason, it doesn't work on the vacuous case.
+blindLookup :: Ord k => Set k -> MassMap k -> Double
+blindLookup a (MM om2 m) = IM.findWithDefault 0 a' m
+  where a' = set2int om2 a
 
 insert :: Ord k => Set k -> Double -> MassMap k -> MassMap k
 insert k v (MM omega m) = MM omega (IM.insert k' v m)
