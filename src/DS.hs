@@ -22,8 +22,8 @@ data DS k = DS [k] (MassMap k)
   deriving (Eq, Ord, Show)
 
 -- The mass is simply the value of a in the set
-mass :: (Ord k) => DS k -> Set k -> Set k -> Double
-mass (DS _ map) _ a = map ! a
+mass :: (Foldable b, Foldable c, Ord k) => DS k -> b k -> c k -> Double
+mass (DS _ map) _ a = map ! (Set.fromList (toList a))
 
 dempsterCombination :: Ord k => DS k -> DS k -> DS k
 dempsterCombination (DS om1 m1) (DS om2 m2) =
