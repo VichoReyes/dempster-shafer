@@ -13,6 +13,9 @@ instance Functor (DefaultMap k) where
 empty :: a -> DefaultMap k a
 empty d = DM d Map.empty
 
+delete :: Ord k => k -> DefaultMap k a -> DefaultMap k a
+delete k (DM d m) = DM d $ Map.delete k m
+
 -- | The first argument is the default value
 -- | The next two are the only element
 singleton :: a -> k -> a -> DefaultMap k a

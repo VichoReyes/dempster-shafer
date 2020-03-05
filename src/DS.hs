@@ -4,53 +4,62 @@ module DS where
   -- , mass
   -- ) where
 
+-- The following module is an implementation of Dempster Shafer
+-- Theory. It would be interesting to make a Transferable Belief Model
+-- implementation (https://en.wikipedia.org/wiki/Transferable_belief_model)
+
 import Data.Set (Set, (\\))
 import qualified Data.Set as Set
 import DefaultMap (DefaultMap, (!))
 import qualified DefaultMap as DM
 import Data.Foldable (toList)
 
-newtype DS a = DS (DefaultMap (Set a) Double)
+-- DS has the domain and a mass assignment map
+-- In the case of mempty, everything will be empty
+-- and should be replaced with the others when
+-- combining
+data DS a = DS [a] (DefaultMap (Set a) Double)
   deriving (Eq, Ord, Show)
 
--- The set of all possibilities
--- newtype Omega a = Omega {
---   getOmega :: Set a
--- } deriving (Eq)
+-- The mass is simply the value of a in the set
+mass :: (Foldable b, Foldable c, Ord a) => DS a -> b a -> c a -> Double
+mass (DS _ defMap) _ a = defMap ! (Set.fromList . toList) a
 
--- The mass is the value of the complement of the "a" set
-mass (DS defMap) omega a = defMap ! (omega' \\ a')
-  where omega' = Set.fromList (toList omega)
-        a' = Set.fromList (toList a)
-
--- Dempster's combination rule works over the sum of all sets
+-- The DS combination rule works over the sum of all sets
 -- whose intersection is the set we're looking the mass of.
--- Because we have the complements of said sets, we use the union
--- as per DeMorgan's property
+-- Therefore, we sum every mass of an intersection
 dempsterCombination :: Ord a => DS a -> DS a -> DS a
-dempsterCombination (DS m1) (DS m2) =
+dempsterCombination ds1@(DS om1 _) ds2@(DS om2 _)
+  | null om1 = ds2
+  | null om2 = ds1
+  | otherwise = dempsterCombination' ds1 ds2
+
+dempsterCombination' :: Ord a => DS a -> DS a -> DS a
+dempsterCombination' (DS om1 m1) (DS om2 m2) =
   let possibilities = Set.cartesianProduct (DM.keysSet m1) (DM.keysSet m2)
-      subnormal = foldr sumByUnion (DM.empty 0) possibilities
+      subnormal = foldr sumByIntersection (DM.empty 0) possibilities
       kConstant = calculateK subnormal
-  in DS $ fmap (*kConstant) subnormal
-    where sumByUnion (x, y) m = let set = Set.union x y
-                                    value = m1!x * m2!y
-                                in DM.insertWith (+) set value m
+  in DS omega $ DM.delete Set.empty $ fmap (kConstant*) subnormal
+    where
+      omega = if null om1 then om2 else om1
+      sumByIntersection (x, y) m = let set = Set.intersection x y
+                                       value = m1!x * m2!y
+                                   in DM.insertWith (+) set value m
 
 fromMasses :: Ord a => Set a -> [([a], Double)] -> DS a
-fromMasses omega l = DS $ DM.fromList 0 $ map complement l
-  where complement (as, d) = (omega \\ Set.fromList as, d)
+fromMasses omega l = DS (toList omega) $ DM.fromList 0 $ map go l
+  where go (as, d) = (Set.fromList as, d)
 
 -- The sum is a measure of the compatibility of the
 -- evidences.
-calculateK :: DefaultMap a Double -> Double
-calculateK m = 1 -- sum m
+calculateK :: Ord a => DefaultMap (Set a) Double -> Double
+calculateK m = 1 / (1 - (m!Set.empty))
 
 instance Ord a => Semigroup (DS a) where
   (<>) = dempsterCombination
 
 instance Ord a => Monoid (DS a) where
-  mempty = DS $ DM.singleton 0 Set.empty 1
+  mempty = DS [] $ DM.singleton 0 Set.empty 1
 
 someFunc :: IO ()
 someFunc = putStrLn "someFunc"
