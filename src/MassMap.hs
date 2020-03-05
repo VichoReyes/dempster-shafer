@@ -44,11 +44,14 @@ dempsterCombination (MM om1 m1) (MM om2 m2) =
             value = m1!x * m2!y
         in IM.insertWith (+) set value m
 
--- these 2 functions shouldn't be exported
--- TODO return Maybe values
 set2int :: Ord k => [k] -> Set k -> Int
 set2int omega s = foldr acc Bits.zeroBits s
   where acc el int = int .|. Bits.bit (fromJust (elemIndex el omega))
+
+-- Maybe version:
+-- set2int :: Ord k => [k] -> Set k -> Maybe Int
+-- set2int omega s = foldr (.|.) Bits.zeroBits <$> traverse flipBit (toList s)
+--   where flipBit int = Bits.bit <$> elemIndex el omega
 
 int2set :: Ord k => [k] -> Int -> Set k
 int2set omega is = foldMap f [0..Bits.finiteBitSize is]
