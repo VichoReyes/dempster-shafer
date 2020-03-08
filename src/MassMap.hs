@@ -16,16 +16,16 @@ import qualified Data.Set as Set
 import qualified Data.Bits as Bits
 import Data.Bits ((.&.), (.|.))
 
--- A MassMap is a Map where the keys are
--- always subsets of a domain omega
--- and the default value is 0
+-- | A MassMap is a Map where the keys are
+-- | always subsets of a domain omega
+-- | and the default value is 0
 -- TODO make Eq, Ord ignore omega?
 -- TODO auto-normalize?
 data MassMap k = MM [k] (IntMap Double)
   deriving (Eq, Ord, Show)
 
 normalize :: Ord k => MassMap k -> MassMap k
-normalize (MM omega m) = 
+normalize (MM omega m) =
   let withoutEmpty = IM.delete emptySet m
       inverseK = IM.foldr (+) 0 withoutEmpty
   in MM omega (fmap (/inverseK) withoutEmpty)
@@ -36,9 +36,13 @@ emptySet = Bits.zeroBits
 fullSet :: Int
 fullSet = Bits.complement emptySet
 
+-- | The vacuous mass assignment function. Everything is assigned to
+-- | the uncertainty
 vacuous :: MassMap k
 vacuous = MM [] $ IM.singleton fullSet 1
 
+-- | Dempster's Combination Rule for different MassMaps representing
+-- | sources of evidence.
 dempsterCombination :: Ord k => MassMap k -> MassMap k -> MassMap k
 dempsterCombination (MM om1 m1) (MM om2 m2) =
   let possibilities = Set.cartesianProduct (intSet m1) (intSet m2)
@@ -66,19 +70,8 @@ int2set omega is = foldMap f [0..Bits.finiteBitSize is]
                 then Set.singleton $ omega!!i
                 else Set.empty
 
-empty :: [k] -> MassMap k
-empty omega = MM omega IM.empty
-
-delete :: Ord k => Set k -> MassMap k -> MassMap k
-delete k (MM omega m) = MM omega $ IM.delete k' m
-  where k' = set2int omega k
-
-singleton :: Ord k => [k] -> Set k -> Double -> MassMap k
-singleton omega k v = MM omega $ IM.singleton k' v
-  where k' = set2int omega k
-
--- domainLookup returns the mass of a set
--- the first argument is the universe (needed in the vacuous case)
+-- | domainLookup returns the mass of a set
+-- | the first argument is the universe (needed in the vacuous case)
 domainLookup :: Ord k => Set k -> Set k -> MassMap k -> Double
 domainLookup om1 a mm@(MM om2 m)
   | null om2 && om1 == a = 1
@@ -86,8 +79,8 @@ domainLookup om1 a mm@(MM om2 m)
   | om1 /= Set.fromList om2 = error "different universe sets given"
   | otherwise = blindLookup a mm
 
--- blindLookup is like domainLookup but it doesn't need the domain.
--- For this reason, it doesn't work on the vacuous case.
+-- | blindLookup is like domainLookup but it doesn't need the domain.
+-- | For this reason, it doesn't work on the vacuous case.
 blindLookup :: Ord k => Set k -> MassMap k -> Double
 blindLookup a (MM om2 m) = IM.findWithDefault 0 a' m
   where a' = set2int om2 a
@@ -96,6 +89,9 @@ insert :: Ord k => Set k -> Double -> MassMap k -> MassMap k
 insert k v (MM omega m) = MM omega (IM.insert k' v m)
   where k' = set2int omega k
 
+-- | fromList creates a MassMap from an Omega set of possibilities
+-- | and a list of (omega subset, corresponding mass) where the masses
+-- | should add up to one.
 fromList :: Ord k => [k] -> [(Set k, Double)] -> MassMap k
 fromList omega l = MM omega $ IM.fromList l'
   where l' = map (\(s, d) -> (set2int omega s, d)) l
