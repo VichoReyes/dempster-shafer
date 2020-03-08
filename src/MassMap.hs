@@ -52,7 +52,7 @@ dempsterCombination (MM om1 m1) (MM om2 m2) =
         in IM.insertWith (+) set value m
 
 set2int :: Ord k => [k] -> Set k -> Int
-set2int omega s = foldr acc Bits.zeroBits s
+set2int omega = foldr acc Bits.zeroBits
   where acc el int = int .|. Bits.bit (fromJust (elemIndex el omega))
 
 -- Maybe version:
