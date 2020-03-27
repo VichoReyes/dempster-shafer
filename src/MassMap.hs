@@ -24,16 +24,19 @@ import Data.Bits ((.&.), (.|.))
 data MassMap k = MM [k] (IntMap Double)
   deriving (Eq, Ord, Show)
 
+-- every set bit represents that the element is in the subset
+type Switches = Int
+
 normalize :: Ord k => MassMap k -> MassMap k
 normalize (MM omega m) =
   let withoutEmpty = IM.delete emptySet m
       inverseK = IM.foldr (+) 0 withoutEmpty
   in MM omega (fmap (/inverseK) withoutEmpty)
 
-emptySet :: Int
+emptySet :: Switches
 emptySet = Bits.zeroBits
 
-fullSet :: Int
+fullSet :: Switches
 fullSet = Bits.complement emptySet
 
 -- | The vacuous mass assignment function. Everything is assigned to
@@ -55,16 +58,16 @@ dempsterCombination (MM om1 m1) (MM om2 m2) =
             value = m1!x * m2!y
         in IM.insertWith (+) set value m
 
-set2int :: Ord k => [k] -> Set k -> Int
+set2int :: Ord k => [k] -> Set k -> Switches
 set2int omega = foldr acc Bits.zeroBits
   where acc el int = int .|. Bits.bit (fromJust (elemIndex el omega))
 
 -- Maybe version:
--- set2int :: Ord k => [k] -> Set k -> Maybe Int
+-- set2int :: Ord k => [k] -> Set k -> Maybe Switches
 -- set2int omega s = foldr (.|.) Bits.zeroBits <$> traverse flipBit (toList s)
 --   where flipBit int = Bits.bit <$> elemIndex el omega
 
-int2set :: Ord k => [k] -> Int -> Set k
+int2set :: Ord k => [k] -> Switches -> Set k
 int2set omega is = foldMap f [0..Bits.finiteBitSize is]
   where f i = if Bits.testBit is i
                 then Set.singleton $ omega!!i
@@ -100,5 +103,5 @@ insertWith :: Ord k => (Double -> Double -> Double) -> Set k -> Double -> MassMa
 insertWith f k v (MM omega m) = MM omega (IM.insertWith f k' v m)
   where k' = set2int omega k
 
-intSet :: IntMap a -> Set Int
+intSet :: IntMap a -> Set Switches
 intSet m = Set.fromList $ IM.keys m
