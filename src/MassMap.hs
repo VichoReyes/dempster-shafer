@@ -21,8 +21,10 @@ import Data.Bits ((.&.), (.|.))
 -- | and the default value is 0
 -- TODO make Eq, Ord ignore omega?
 -- TODO auto-normalize?
-data MassMap k = MM [k] (IntMap Double)
-  deriving (Eq, Ord, Show)
+data MassMap k = MM {
+  getOmega :: [k],
+  getIM :: IntMap Double
+} deriving (Eq, Ord, Show)
 
 -- every set bit represents that the element is in the subset
 type Switches = Int
