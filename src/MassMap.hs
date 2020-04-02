@@ -7,103 +7,99 @@ module MassMap
   , fromList
   ) where
 
-import Data.List
+import Data.List (intersect, elemIndex)
 import Data.Maybe (fromJust)
-import Data.IntMap (IntMap, (!), (!?))
-import qualified Data.IntMap as IM
+import Data.Map (Map, (!), (!?))
+import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified Data.Bits as Bits
-import Data.Bits ((.&.), (.|.))
 
 -- | A MassMap is a Map where the keys are
 -- | always subsets of a domain omega
 -- | and the default value is 0
 -- TODO make Eq, Ord ignore omega?
 -- TODO auto-normalize?
-data MassMap k = MM {
+data MassMap k = Vacuous | MM {
   getOmega :: [k],
-  getIM :: IntMap Double
+  getIM :: Map [Int] Double
 } deriving (Eq, Ord, Show)
 
--- every set bit represents that the element is in the subset
-type Switches = Int
+type Switches = [Int]
 
 normalize :: Ord k => MassMap k -> MassMap k
 normalize (MM omega m) =
-  let withoutEmpty = IM.delete emptySet m
-      inverseK = IM.foldr (+) 0 withoutEmpty
+  let withoutEmpty = Map.delete emptySet m
+      inverseK = Map.foldr (+) 0 withoutEmpty
   in MM omega (fmap (/inverseK) withoutEmpty)
 
 emptySet :: Switches
-emptySet = Bits.zeroBits
+emptySet = []
 
-fullSet :: Switches
-fullSet = Bits.complement emptySet
+-- This is going to cause a bug
+-- fullSet :: Switches
+-- fullSet = [0..]
 
 -- | The vacuous mass assignment function. Everything is assigned to
 -- | the uncertainty
 vacuous :: MassMap k
-vacuous = MM [] $ IM.singleton fullSet 1
+vacuous = Vacuous
 
 -- | Dempster's Combination Rule for different MassMaps representing
 -- | sources of evidence.
 dempsterCombination :: Ord k => MassMap k -> MassMap k -> MassMap k
+dempsterCombination Vacuous mm2 = mm2
+dempsterCombination mm1 Vacuous = mm1
 dempsterCombination (MM om1 m1) (MM om2 m2) =
-  let possibilities = Set.cartesianProduct (intSet m1) (intSet m2)
-      subnormal = foldr sumByIntersection IM.empty possibilities
+  let possibilities = Set.cartesianProduct (switchSet m1) (switchSet m2)
+      subnormal = foldr sumByIntersection Map.empty possibilities
   in normalize $ MM omega subnormal
     where
       omega = if null om1 then om2 else om1
       sumByIntersection (x, y) m =
-        let set = x .&. y
+        let set = x `intersect` y
             value = m1!x * m2!y
-        in IM.insertWith (+) set value m
+        in Map.insertWith (+) set value m
 
-set2int :: Ord k => [k] -> Set k -> Switches
-set2int omega = foldr acc Bits.zeroBits
-  where acc el int = int .|. Bits.bit (fromJust (elemIndex el omega))
+set2switches :: Ord k => [k] -> Set k -> Switches
+set2switches omega chosen = Set.toAscList $ Set.map (fromJust . flip elemIndex omega) chosen
 
 -- Maybe version:
--- set2int :: Ord k => [k] -> Set k -> Maybe Switches
--- set2int omega s = foldr (.|.) Bits.zeroBits <$> traverse flipBit (toList s)
+-- set2switches :: Ord k => [k] -> Set k -> Maybe Switches
+-- set2switches omega s = foldr (.|.) Bits.zeroBits <$> traverse flipBit (toList s)
 --   where flipBit int = Bits.bit <$> elemIndex el omega
 
-int2set :: Ord k => [k] -> Switches -> Set k
-int2set omega is = foldMap f [0..Bits.finiteBitSize is]
-  where f i = if Bits.testBit is i
-                then Set.singleton $ omega!!i
-                else Set.empty
+switches2set :: Ord k => [k] -> Switches -> Set k
+switches2set omega = foldMap f
+  where f i = Set.singleton $ omega!!i
 
 -- | domainLookup returns the mass of a set
 -- | the first argument is the universe (needed in the vacuous case)
 domainLookup :: Ord k => Set k -> Set k -> MassMap k -> Double
+domainLookup om1 a Vacuous = if om1 == a then 1 else 0
 domainLookup om1 a mm@(MM om2 m)
-  | null om2 && om1 == a = 1
-  | null om2 && om1 /= a = 0
   | om1 /= Set.fromList om2 = error "different universe sets given"
   | otherwise = blindLookup a mm
 
 -- | blindLookup is like domainLookup but it doesn't need the domain.
 -- | For this reason, it doesn't work on the vacuous case.
 blindLookup :: Ord k => Set k -> MassMap k -> Double
-blindLookup a (MM om2 m) = IM.findWithDefault 0 a' m
-  where a' = set2int om2 a
+blindLookup a (MM om2 m) = Map.findWithDefault 0 a' m
+  where a' = set2switches om2 a
 
 insert :: Ord k => Set k -> Double -> MassMap k -> MassMap k
-insert k v (MM omega m) = MM omega (IM.insert k' v m)
-  where k' = set2int omega k
+insert k v (MM omega m) = MM omega (Map.insert k' v m)
+  where k' = set2switches omega k
 
 -- | fromList creates a MassMap from an Omega set of possibilities
 -- | and a list of (omega subset, corresponding mass) where the masses
 -- | should add up to one.
 fromList :: Ord k => [k] -> [(Set k, Double)] -> MassMap k
-fromList omega l = MM omega $ IM.fromList l'
-  where l' = map (\(s, d) -> (set2int omega s, d)) l
+fromList omega l = MM omega $ Map.fromList l'
+  where l' = map (\(s, d) -> (set2switches omega s, d)) l
 
 insertWith :: Ord k => (Double -> Double -> Double) -> Set k -> Double -> MassMap k -> MassMap k
-insertWith f k v (MM omega m) = MM omega (IM.insertWith f k' v m)
-  where k' = set2int omega k
+insertWith f k v (MM omega m) = MM omega (Map.insertWith f k' v m)
+  where k' = set2switches omega k
 
-intSet :: IntMap a -> Set Switches
-intSet m = Set.fromList $ IM.keys m
+switchSet :: Map Switches a -> Set Switches
+switchSet m = Set.fromList $ Map.keys m
