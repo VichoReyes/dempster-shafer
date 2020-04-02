@@ -103,3 +103,7 @@ insertWith f k v (MM omega m) = MM omega (Map.insertWith f k' v m)
 
 switchSet :: Map Switches a -> Set Switches
 switchSet m = Set.fromList $ Map.keys m
+
+instance Functor MassMap where
+  fmap f (MM omega im) = MM (fmap f omega) im
+  fmap _ Vacuous = Vacuous
