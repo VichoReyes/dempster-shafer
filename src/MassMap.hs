@@ -22,7 +22,7 @@ import qualified Data.Set as Set
 data MassMap k = Vacuous | MM {
   getOmega :: [k],
   getIM :: Map [Int] Double
-} deriving (Eq, Ord, Show)
+} deriving (Eq, Show)
 
 type Switches = [Int]
 

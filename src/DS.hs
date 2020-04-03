@@ -16,7 +16,7 @@ import Data.Foldable (toList)
 
 -- DS has the domain and a mass assignment map
 newtype DS k = DS (MassMap k)
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Show)
 
 -- The mass is simply the value of a in the set
 mass :: (Foldable c, Ord k) => DS k -> Set k -> c k -> Double
