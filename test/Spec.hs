@@ -8,7 +8,8 @@ main = runTestTT $ TestList $ map TestCase
   , alice @=? alice <> mempty
   , aliceAndBob @=? mempty <> aliceAndBob
   , mass aliceAndBob' numbers [2] @=? mass aliceAndBob numbers [2]
-  , aliceAndBob' @=? aliceAndBob ]
+  , aliceAndBob' @=? aliceAndBob
+  , aliceAndBob @=? (aliceAndBob >>= return)]
 
 numbers = Set.fromList [1..5] :: Set Integer
 numbers' = fromMasses numbers

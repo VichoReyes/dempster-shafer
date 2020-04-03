@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module DS where
   -- ( someFunc
   -- , DS
@@ -16,7 +17,7 @@ import Data.Foldable (toList)
 
 -- DS has the domain and a mass assignment map
 newtype DS k = DS (MassMap k)
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Applicative, Monad)
 
 -- The mass is simply the value of a in the set
 mass :: (Foldable c, Ord k) => DS k -> Set k -> c k -> Double

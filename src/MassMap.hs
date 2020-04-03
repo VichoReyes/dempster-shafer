@@ -7,7 +7,8 @@ module MassMap
   , fromList
   ) where
 
-import Data.List (intersect, elemIndex)
+import Data.List (union, intersect, elemIndex)
+import Control.Monad (ap)
 import Data.Maybe (fromJust)
 import Data.Map (Map, (!), (!?))
 import qualified Data.Map as Map
@@ -107,3 +108,40 @@ switchSet m = Set.fromList $ Map.keys m
 instance Functor MassMap where
   fmap f (MM omega im) = MM (fmap f omega) im
   fmap _ Vacuous = Vacuous
+
+instance Applicative MassMap where
+  pure x = MM [x] $ Map.singleton [0] 1
+  (<*>) = ap
+
+instance Monad MassMap where
+  m >>= f = join $ fmap f m
+
+-- warning: zero will not work
+join :: MassMap (MassMap k) -> MassMap k
+join Vacuous = error "stop messing with me"
+join (MM innerMMs outerIM)
+  | null innerMMs = error "idk what to do here"
+  | otherwise = MM (concat innerOmegas)
+      (foldr1 addByKeys $ map (oneMass offsets innerMMs) (Map.assocs outerIM))
+    where
+      innerOmegas = map getOmega innerMMs -- PARTIAL error when a vacuous one
+      offsets = reverse . foldl (\offs n -> head offs + n : offs) [0] $ map length innerOmegas
+
+addByKeys = Map.unionWith (+)
+
+-- oneMass :: [MassMap k] -> ([Int], Double) -> Map Switches Double
+oneMass offsets finals (indices, scale) = Map.map (scale*) $ joinMassMaps (finals `indexes` indices) (offsets `indexes` indices)
+
+indexes :: [a] -> [Int] -> [a]
+indexes as = map (as!!)
+
+joinMassMaps :: [MassMap k] -> [Int] -> Map Switches Double
+joinMassMaps mms offsets = foldr1 combineIMs (padOffsets (map getIM mms) offsets)
+
+padOffsets = zipWith (\im o -> Map.mapKeysWith (error "shouldn't happen") (map (+o)) im)
+
+combineIMs :: Map Switches Double -> Map Switches Double -> Map Switches Double
+combineIMs im1 im2 = Map.fromList $ do
+  (e1, v1) <- Map.assocs im1
+  (e2, v2) <- Map.assocs im2
+  return (e1 `union` e2, v1 * v2)
