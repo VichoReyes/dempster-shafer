@@ -125,7 +125,7 @@ join (MM innerMMs outerIM)
       (foldr1 addByKeys $ map (oneMass offsets innerMMs) (Map.assocs outerIM))
     where
       innerOmegas = map getOmega innerMMs -- PARTIAL error when a vacuous one
-      offsets = reverse . foldl (\offs n -> head offs + n : offs) [0] $ map length innerOmegas
+      offsets = scanl (+) 0 $ map length innerOmegas
 
 addByKeys = Map.unionWith (+)
 
