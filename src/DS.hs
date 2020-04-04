@@ -3,7 +3,6 @@ module DS
   , vacuous
   , dempsterCombination
   , mass
-  , blindMass
   , fromMasses
   ) where
 
@@ -19,7 +18,7 @@ import qualified Data.Set as Set
 -- Theory. It would be interesting to make a Transferable Belief Model
 -- implementation (https://en.wikipedia.org/wiki/Transferable_belief_model)
 
-data DS k = Vacuous | MM {
+data DS k = MM {
   getOmega :: [k],
   getIM :: Map [Int] Double
 } deriving (Eq, Show)
@@ -36,15 +35,13 @@ emptySet :: Switches
 emptySet = []
 
 -- | The vacuous mass assignment function. Everything is assigned to
--- | the uncertainty
-vacuous :: DS k
-vacuous = Vacuous
+-- | the uncertainty. Needs an omega set
+vacuous :: Ord k => [k] -> DS k
+vacuous omega = fromMasses omega [(omega, 1)]
 
 -- | Dempster's Combination Rule for different MassMaps representing
 -- | sources of evidence.
 dempsterCombination :: Ord k => DS k -> DS k -> DS k
-dempsterCombination Vacuous mm2 = mm2
-dempsterCombination mm1 Vacuous = mm1
 dempsterCombination (MM om1 m1) (MM om2 m2) =
   let possibilities = Set.cartesianProduct (switchSet m1) (switchSet m2)
       subnormal = foldr sumByIntersection Map.empty possibilities
@@ -68,20 +65,11 @@ switches2set :: Ord k => [k] -> Switches -> Set k
 switches2set omega = foldMap f
   where f i = Set.singleton $ omega!!i
 
--- | mass returns the mass of a set
--- | the first argument is the universe (needed in the vacuous case)
-mass :: Ord k => DS k -> [k] -> [k] -> Either String Double
-mass Vacuous om1 a = Right $ if om1 == a then 1 else 0
-mass mm@(MM om2 m) om1 a
-  | om1 /= om2 = Left "different universe sets given"
-  | otherwise = Right $ Map.findWithDefault 0 a' m
+-- | mass returns the mass of a set in a DS
+mass :: Ord k => DS k -> [k] -> Double
+mass mm@(MM om2 m) a
+  | otherwise = Map.findWithDefault 0 a' m
   where a' = set2switches om2 (Set.fromList a)
-
--- | blindMass is like mass but it doesn't need the domain.
--- | For this reason, it doesn't work on the vacuous case.
-blindMass :: Ord k => DS k -> [k] -> Either String Double
-blindMass Vacuous _ = Left "blindMass: tried to get mass from a Vacuous"
-blindMass ds@(MM omega im) a = mass ds omega a
 
 insert :: Ord k => Set k -> Double -> DS k -> DS k
 insert k v (MM omega m) = MM omega (Map.insert k' v m)
@@ -103,7 +91,6 @@ switchSet m = Set.fromList $ Map.keys m
 
 instance Functor DS where
   fmap f (MM omega im) = MM (fmap f omega) im
-  fmap _ Vacuous = Vacuous
 
 instance Applicative DS where
   pure x = MM [x] $ Map.singleton [0] 1
@@ -115,18 +102,14 @@ instance Monad DS where
 instance Ord k => Semigroup (DS k) where
   (<>) = dempsterCombination
 
-instance Ord k => Monoid (DS k) where
-  mempty = Vacuous
-
 -- warning: zero will not work
 join :: DS (DS k) -> DS k
-join Vacuous = error "stop messing with me"
 join (MM innerMMs outerIM)
   | null innerMMs = error "idk what to do here"
   | otherwise = MM (concat innerOmegas)
       (foldr1 addByKeys $ map (oneMass offsets innerMMs) (Map.assocs outerIM))
     where
-      innerOmegas = map getOmega innerMMs -- PARTIAL error when a vacuous one
+      innerOmegas = map getOmega innerMMs
       offsets = scanl (+) 0 $ map length innerOmegas
 
 addByKeys = Map.unionWith (+)
