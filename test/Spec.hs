@@ -4,14 +4,14 @@ import qualified Data.Set as Set
 import DS
 
 main = runTestTT $ TestList $ map TestCase
-  [ 1 @=? mass mempty numbers numbers
+  [ Right 1 @=? mass mempty numbers numbers
   , alice @=? alice <> mempty
   , aliceAndBob @=? mempty <> aliceAndBob
   , mass aliceAndBob' numbers [2] @=? mass aliceAndBob numbers [2]
   , aliceAndBob' @=? aliceAndBob
   , aliceAndBob @=? (aliceAndBob >>= return)]
 
-numbers = Set.fromList [1..5] :: Set Integer
+numbers = [1..5]
 numbers' = fromMasses numbers
 
 alice = numbers' [([1], 0.5), ([2], 0.5)]
