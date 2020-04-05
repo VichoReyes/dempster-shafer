@@ -55,7 +55,7 @@ dempsterCombination (MM om1 m1) (MM om2 m2) =
         in Map.insertWith (+) set value m
 
 set2switches :: Ord k => [k] -> Set k -> Maybe Switches
-set2switches omega s = traverse (flip elemIndex omega) (Set.toList s)
+set2switches omega s = traverse (`elemIndex` omega) (Set.toList s)
 
 switches2set :: Ord k => [k] -> Switches -> Set k
 switches2set omega = foldMap f
@@ -92,7 +92,6 @@ instance Monad DS where
 instance Ord k => Semigroup (DS k) where
   (<>) = dempsterCombination
 
--- warning: zero will not work
 join :: DS (DS k) -> DS k
 join (MM innerMMs outerIM)
   | null innerMMs = error "idk what to do here"
@@ -104,7 +103,7 @@ join (MM innerMMs outerIM)
 
 addByKeys = Map.unionWith (+)
 
--- oneMass :: [DS k] -> ([Int], Double) -> Map Switches Double
+oneMass :: [Int] -> [DS k] -> ([Int], Double) -> Map Switches Double
 oneMass offsets finals (indices, scale) = Map.map (scale*) $ joinMassMaps (finals `indexes` indices) (offsets `indexes` indices)
 
 indexes :: [a] -> [Int] -> [a]
@@ -113,6 +112,7 @@ indexes as = map (as!!)
 joinMassMaps :: [DS k] -> [Int] -> Map Switches Double
 joinMassMaps mms offsets = foldr1 combineIMs (padOffsets (map getIM mms) offsets)
 
+padOffsets :: [Map Switches Double] -> [Int] -> [Map Switches Double]
 padOffsets = zipWith (\im o -> Map.mapKeysWith (error "shouldn't happen") (map (+o)) im)
 
 combineIMs :: Map Switches Double -> Map Switches Double -> Map Switches Double
