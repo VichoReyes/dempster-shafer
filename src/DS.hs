@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 module DS
   ( DS
   , vacuous
@@ -37,7 +38,7 @@ emptySet = []
 -- | The vacuous mass assignment function. Everything is assigned to
 -- | the uncertainty. Needs an omega set
 vacuous :: Ord k => [k] -> DS k
-vacuous omega = fromMasses omega [(omega, 1)]
+vacuous omega = fromJust $ fromMasses omega [(omega, 1)]
 
 -- | Dempster's Combination Rule for different MassMaps representing
 -- | sources of evidence.
@@ -53,38 +54,27 @@ dempsterCombination (MM om1 m1) (MM om2 m2) =
             value = m1!x * m2!y
         in Map.insertWith (+) set value m
 
-set2switches :: Ord k => [k] -> Set k -> Switches
-set2switches omega chosen = Set.toAscList $ Set.map (fromJust . flip elemIndex omega) chosen
-
--- Maybe version:
--- set2switches :: Ord k => [k] -> Set k -> Maybe Switches
--- set2switches omega s = foldr (.|.) Bits.zeroBits <$> traverse flipBit (toList s)
---   where flipBit int = Bits.bit <$> elemIndex el omega
+set2switches :: Ord k => [k] -> Set k -> Maybe Switches
+set2switches omega s = traverse (flip elemIndex omega) (Set.toList s)
 
 switches2set :: Ord k => [k] -> Switches -> Set k
 switches2set omega = foldMap f
   where f i = Set.singleton $ omega!!i
 
 -- | mass returns the mass of a set in a DS
-mass :: Ord k => DS k -> [k] -> Double
-mass mm@(MM om2 m) a
-  | otherwise = Map.findWithDefault 0 a' m
+-- | the result will be Nothing if the set contains
+-- | any element not in the DS's Omega set.
+mass :: Ord k => DS k -> [k] -> Maybe Double
+mass mm@(MM om2 m) a = flip (Map.findWithDefault 0) m <$> a'
   where a' = set2switches om2 (Set.fromList a)
-
-insert :: Ord k => Set k -> Double -> DS k -> DS k
-insert k v (MM omega m) = MM omega (Map.insert k' v m)
-  where k' = set2switches omega k
 
 -- | fromMasses creates a DS from an Omega set of possibilities
 -- | and a list of (omega subset, corresponding mass) where the masses
 -- | should add up to one.
-fromMasses :: Ord k => [k] -> [([k], Double)] -> DS k
-fromMasses omega l = MM omega $ Map.fromList l'
-  where l' = map (\(s, d) -> (set2switches omega (Set.fromList s), d)) l
-
-insertWith :: Ord k => (Double -> Double -> Double) -> Set k -> Double -> DS k -> DS k
-insertWith f k v (MM omega m) = MM omega (Map.insertWith f k' v m)
-  where k' = set2switches omega k
+fromMasses :: Ord k => [k] -> [([k], Double)] -> Maybe (DS k)
+fromMasses omega l = MM omega . Map.fromList <$> traverse adaptKey l
+  where
+    adaptKey (set, val) = (,val) <$> set2switches omega (Set.fromList set)
 
 switchSet :: Map Switches a -> Set Switches
 switchSet m = Set.fromList $ Map.keys m
