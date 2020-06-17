@@ -33,7 +33,7 @@ import qualified Data.Set                      as Set
 data DS k = MM {
   getOmega :: [k],
   getIM :: Map [Int] Double
-} deriving (Eq, Show)
+} deriving (Eq)
 
 type Switches = [Int]
 
@@ -119,6 +119,13 @@ instance Monad DS where
 
 instance Ord k => Semigroup (DS k) where
   (<>) = dempsterCombination
+
+instance Show k => Show (DS k) where
+  showsPrec _ (MM om im) = Map.foldrWithKey f (++ "") im
+   where
+    f :: [Int] -> Double -> ShowS -> ShowS
+    f is m c =
+      ("(" ++) . shows (map (om !!) is) . ((", " ++ show m ++ ")") ++) . c
 
 join :: DS (DS k) -> DS k
 join (MM innerMMs outerIM)
