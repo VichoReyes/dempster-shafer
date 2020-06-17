@@ -1,6 +1,6 @@
 module Main where
 
-import DS
+import           DS
 
 main = do
   putStrLn "first the Functor version"
@@ -18,13 +18,14 @@ mySymptoms :: DS Symptom
 mySymptoms = fromMasses' [([Fever, Headache], 1)]
 
 diagnosesF :: Symptom -> Sickness
-diagnosesF Fever = Flu
+diagnosesF Fever             = Flu
 diagnosesF BreathingProblems = Cancer
-diagnosesF Headache = Amigdalitis
-diagnosesF Inflammation = Amigdalitis
+diagnosesF Headache          = Amigdalitis
+diagnosesF Inflammation      = Amigdalitis
 
 diagnosesM :: Symptom -> DS Sickness
-diagnosesM Fever = fromMasses' [([Flu, Amigdalitis], 1)]
+diagnosesM Fever             = fromMasses' [([Flu, Amigdalitis], 1)]
 diagnosesM BreathingProblems = vacuous'
-diagnosesM Headache = fromMasses' [([Flu, Amigdalitis], 0.3), ([Cancer], 0.4), ([minBound..maxBound], 0.3)]
+diagnosesM Headache          = fromMasses'
+  [([Flu, Amigdalitis], 0.3), ([Cancer], 0.4), ([minBound .. maxBound], 0.3)]
 diagnosesM Inflammation = return Amigdalitis
