@@ -16,6 +16,7 @@ main = runTestTT $ TestList $ map
     @=? mass diagnosesF [Flu, Amigdalitis]
   , mass (simplify diagnosesM) [Flu, Amigdalitis]
     @=? mass diagnosesM [Flu, Amigdalitis]
+  , simplify (simplify diagnosesM) @=? simplify diagnosesM
   ]
 
 myVacuous = vacuous numbers
