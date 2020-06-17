@@ -2,9 +2,11 @@
 module DS
   ( DS
   , vacuous
+  , vacuous'
   , dempsterCombination
   , mass
   , fromMasses
+  , fromMasses'
   ) where
 
 import Data.List (union, intersect, elemIndex)
@@ -40,6 +42,11 @@ emptySet = []
 vacuous :: Ord k => [k] -> DS k
 vacuous omega = fromJust $ fromMasses omega [(omega, 1)]
 
+-- | Convenience vacuous function for Bounded enums. Uses the whole
+-- | enumeration as omega.
+vacuous' :: (Ord k, Enum k, Bounded k) => DS k
+vacuous' = vacuous [minBound .. maxBound]
+
 -- | Dempster's Combination Rule for different MassMaps representing
 -- | sources of evidence.
 dempsterCombination :: Ord k => DS k -> DS k -> DS k
@@ -71,10 +78,14 @@ mass mm@(MM om2 m) a = flip (Map.findWithDefault 0) m <$> a'
 -- | fromMasses creates a DS from an Omega set of possibilities
 -- | and a list of (omega subset, corresponding mass) where the masses
 -- | should add up to one.
+-- TODO check that the masses add up to one
 fromMasses :: Ord k => [k] -> [([k], Double)] -> Maybe (DS k)
 fromMasses omega l = MM omega . Map.fromList <$> traverse adaptKey l
   where
     adaptKey (set, val) = (,val) <$> set2switches omega (Set.fromList set)
+
+fromMasses' :: (Bounded k, Enum k, Ord k) => [([k], Double)] -> DS k
+fromMasses' = fromJust . fromMasses [minBound .. maxBound]
 
 switchSet :: Map Switches a -> Set Switches
 switchSet m = Set.fromList $ Map.keys m
