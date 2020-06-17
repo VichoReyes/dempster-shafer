@@ -5,6 +5,7 @@ module DS
   , vacuous'
   , dempsterCombination
   , mass
+  , simplify
   , fromMasses
   , fromMasses'
   )
@@ -13,6 +14,7 @@ where
 import           Data.List                      ( union
                                                 , intersect
                                                 , elemIndex
+                                                , nub
                                                 )
 import           Control.Monad                  ( ap )
 import           Data.Maybe                     ( fromJust )
@@ -91,6 +93,13 @@ fromMasses omega l = MM omega . Map.fromList <$> traverse adaptKey l
 
 fromMasses' :: (Bounded k, Enum k, Ord k) => [([k], Double)] -> DS k
 fromMasses' = fromJust . fromMasses [minBound .. maxBound]
+
+simplify :: Ord k => DS k -> DS k
+simplify (MM omega im) =
+  let omega2     = nub omega
+      newIndices = map (fromJust . flip elemIndex omega2) omega
+      im2        = Map.mapKeysWith (+) (nub . map (newIndices !!)) im
+  in  MM omega2 im2
 
 switchSet :: Map Switches a -> Set Switches
 switchSet m = Set.fromList $ Map.keys m

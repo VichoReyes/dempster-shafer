@@ -4,9 +4,9 @@ import           DS
 
 main = do
   putStrLn "first the Functor version"
-  print (diagnosesF <$> mySymptoms)
+  print (simplify (diagnosesF <$> mySymptoms))
   putStrLn "then the Monad one"
-  print (mySymptoms >>= diagnosesM)
+  print (simplify (mySymptoms >>= diagnosesM))
 
 data Symptom = Fever | BreathingProblems | Headache | Inflammation
   deriving (Eq, Ord, Enum, Bounded, Show)
