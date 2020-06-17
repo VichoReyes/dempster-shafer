@@ -78,7 +78,7 @@ switches2set omega = foldMap f where f i = Set.singleton $ omega !! i
 -- | the result will be Nothing if the set contains
 -- | any element not in the DS's Omega set.
 mass :: Ord k => DS k -> [k] -> Maybe Double
-mass mm@(MM om2 m) a = flip (Map.findWithDefault 0) m <$> a'
+mass (MM om2 m) a = flip (Map.findWithDefault 0) m <$> a'
   where a' = set2switches om2 (Set.fromList a)
 
 -- | fromMasses creates a DS from an Omega set of possibilities
