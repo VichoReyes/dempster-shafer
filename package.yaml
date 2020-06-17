@@ -26,6 +26,12 @@ dependencies:
 library:
   source-dirs: src
 
+executable:
+  main: Main.hs
+  source-dirs: example
+  dependencies:
+    - dempster-shafer
+
 tests:
   dempster-shafer-test:
     main:                Spec.hs
