@@ -33,7 +33,19 @@ import qualified Data.Set                      as Set
 data DS k = MM {
   getOmega :: [k],
   getIM :: Map [Int] Double
-} deriving (Eq)
+}
+
+instance (Ord k) => Eq (DS k) where
+  ds1 == ds2 =
+    let MM omega1 im1 = simplify ds1
+        MM omega2 im2 = simplify ds2
+        almostEq x y = abs (x - y) < 0.000001
+    in  and
+          [ omega1 == omega2
+          -- performant versions will come later
+          , Map.isSubmapOfBy almostEq im1 im2
+          , Map.isSubmapOfBy almostEq im2 im1
+          ]
 
 type Switches = [Int]
 
