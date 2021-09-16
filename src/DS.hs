@@ -1,50 +1,53 @@
 {-# LANGUAGE TupleSections #-}
+
 module DS
-  ( DS
-  , vacuous
-  , vacuous'
-  , dempsterCombination
-  , mass
-  , simplify
-  , fromMasses
-  , fromMasses'
+  ( DS,
+    vacuous,
+    vacuous',
+    dempsterCombination,
+    mass,
+    simplify,
+    fromMasses,
+    fromMasses',
   )
 where
 
-import           Data.List                      ( union
-                                                , intersect
-                                                , elemIndex
-                                                , nub
-                                                )
-import           Control.Monad                  ( ap )
-import           Data.Maybe                     ( fromJust )
-import           Data.Map                       ( Map
-                                                , (!)
-                                                , (!?)
-                                                )
-import qualified Data.Map                      as Map
-import           Data.Set                       ( Set )
-import qualified Data.Set                      as Set
+import Control.Monad (ap)
+import Data.List
+  ( elemIndex,
+    intersect,
+    nub,
+    union,
+  )
+import Data.Map
+  ( Map,
+    (!),
+    (!?),
+  )
+import qualified Data.Map as Map
+import Data.Maybe (fromJust)
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 -- The following module is an implementation of Dempster Shafer
 -- Theory. It would be interesting to make a Transferable Belief Model
 -- implementation (https://en.wikipedia.org/wiki/Transferable_belief_model)
 
-data DS k = MM {
-  getOmega :: [k],
-  getIM :: Map [Int] Double
-}
+data DS k = MM
+  { getOmega :: [k],
+    getIM :: Map [Int] Double
+  }
 
 instance (Ord k) => Eq (DS k) where
   ds1 == ds2 =
     let MM omega1 im1 = simplify ds1
         MM omega2 im2 = simplify ds2
         almostEq x y = abs (x - y) < 0.000001
-    in  and
-          [ omega1 == omega2
-          -- performant versions will come later
-          , Map.isSubmapOfBy almostEq im1 im2
-          , Map.isSubmapOfBy almostEq im2 im1
+     in and
+          [ omega1 == omega2,
+            -- performant versions will come later
+            Map.isSubmapOfBy almostEq im1 im2,
+            Map.isSubmapOfBy almostEq im2 im1
           ]
 
 type Switches = [Int]
@@ -52,8 +55,8 @@ type Switches = [Int]
 normalize :: Ord k => DS k -> DS k
 normalize (MM omega m) =
   let withoutEmpty = Map.delete emptySet m
-      inverseK     = Map.foldr (+) 0 withoutEmpty
-  in  MM omega (fmap (/ inverseK) withoutEmpty)
+      inverseK = Map.foldr (+) 0 withoutEmpty
+   in MM omega (fmap (/ inverseK) withoutEmpty)
 
 emptySet :: Switches
 emptySet = []
@@ -73,14 +76,14 @@ vacuous' = vacuous [minBound .. maxBound]
 dempsterCombination :: Ord k => DS k -> DS k -> DS k
 dempsterCombination (MM om1 m1) (MM om2 m2) =
   let possibilities = Set.cartesianProduct (switchSet m1) (switchSet m2)
-      subnormal     = foldr sumByIntersection Map.empty possibilities
-  in  normalize $ MM omega subnormal
- where
-  omega = if null om1 then om2 else om1
-  sumByIntersection (x, y) m =
-    let set   = x `intersect` y
-        value = m1 ! x * m2 ! y
-    in  Map.insertWith (+) set value m
+      subnormal = foldr sumByIntersection Map.empty possibilities
+   in normalize $ MM omega subnormal
+  where
+    omega = if null om1 then om2 else om1
+    sumByIntersection (x, y) m =
+      let set = x `intersect` y
+          value = m1 ! x * m2 ! y
+       in Map.insertWith (+) set value m
 
 set2switches :: Ord k => [k] -> Set k -> Maybe Switches
 set2switches omega s = traverse (`elemIndex` omega) (Set.toList s)
@@ -93,10 +96,10 @@ switches2set omega = foldMap f where f i = Set.singleton $ omega !! i
 -- | any element not in the DS's Omega set.
 mass :: Ord k => DS k -> [k] -> Maybe Double
 mass = go . simplify
- where
-  go (MM om im) a =
-    let a' = set2switches om (Set.fromList a)
-    in  flip (Map.findWithDefault 0) im <$> a'
+  where
+    go (MM om im) a =
+      let a' = set2switches om (Set.fromList a)
+       in flip (Map.findWithDefault 0) im <$> a'
 
 -- | fromMasses creates a DS from an Omega set of possibilities
 -- | and a list of (omega subset, corresponding mass) where the masses
@@ -104,17 +107,18 @@ mass = go . simplify
 -- TODO check that the masses add up to one
 fromMasses :: Ord k => [k] -> [([k], Double)] -> Maybe (DS k)
 fromMasses omega l = MM omega . Map.fromList <$> traverse adaptKey l
-  where adaptKey (set, val) = (, val) <$> set2switches omega (Set.fromList set)
+  where
+    adaptKey (set, val) = (,val) <$> set2switches omega (Set.fromList set)
 
 fromMasses' :: (Bounded k, Enum k, Ord k) => [([k], Double)] -> DS k
 fromMasses' = fromJust . fromMasses [minBound .. maxBound]
 
 simplify :: Ord k => DS k -> DS k
 simplify (MM omega im) =
-  let omega2     = nub omega
+  let omega2 = nub omega
       newIndices = map (fromJust . flip elemIndex omega2) omega
-      im2        = Map.mapKeysWith (+) (nub . map (newIndices !!)) im
-  in  MM omega2 im2
+      im2 = Map.mapKeysWith (+) (nub . map (newIndices !!)) im
+   in MM omega2 im2
 
 switchSet :: Map Switches a -> Set Switches
 switchSet m = Set.fromList $ Map.keys m
@@ -127,33 +131,35 @@ instance Applicative DS where
   (<*>) = ap
 
 instance Monad DS where
-  m >>= f = join $ fmap f m
+  m >>= f = dsJoin $ fmap f m
 
 instance Ord k => Semigroup (DS k) where
   (<>) = dempsterCombination
 
 instance Show k => Show (DS k) where
   showsPrec _ (MM om im) = Map.foldrWithKey f (++ "") im
-   where
-    f :: [Int] -> Double -> ShowS -> ShowS
-    f is m c =
-      ("(" ++) . shows (map (om !!) is) . ((", " ++ show m ++ ")") ++) . c
+    where
+      f :: [Int] -> Double -> ShowS -> ShowS
+      f is m c =
+        ("(" ++) . shows (map (om !!) is) . ((", " ++ show m ++ ")") ++) . c
 
-join :: DS (DS k) -> DS k
-join (MM innerMMs outerIM)
+dsJoin :: DS (DS k) -> DS k
+dsJoin (MM innerMMs outerIM)
   | null innerMMs = error "idk what to do here"
-  | otherwise = MM
-    (concat innerOmegas)
-    (foldr1 addByKeys $ map (oneMass offsets innerMMs) (Map.assocs outerIM))
- where
-  innerOmegas = map getOmega innerMMs
-  offsets     = scanl (+) 0 $ map length innerOmegas
+  | otherwise =
+    MM
+      (concat innerOmegas)
+      (foldr1 addByKeys $ map (oneMass offsets innerMMs) (Map.assocs outerIM))
+  where
+    innerOmegas = map getOmega innerMMs
+    offsets = scanl (+) 0 $ map length innerOmegas
 
 addByKeys = Map.unionWith (+)
 
 oneMass :: [Int] -> [DS k] -> ([Int], Double) -> Map Switches Double
-oneMass offsets finals (indices, scale) = Map.map (scale *)
-  $ joinMassMaps (finals `indexes` indices) (offsets `indexes` indices)
+oneMass offsets finals (indices, scale) =
+  Map.map (scale *) $
+    joinMassMaps (finals `indexes` indices) (offsets `indexes` indices)
 
 indexes :: [a] -> [Int] -> [a]
 indexes as = map (as !!)
